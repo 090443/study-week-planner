@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<!--
+  文件用途：大学生一周学习计划生成器（单文件版）
+  说明：纯前端静态工具，无登录、无后端、无接口、无外部资源。
+  用法：用浏览器直接打开本文件，选择任务 / 时间 / 薄弱项 / 截止紧迫度后点击“生成本周计划”。
+  技术：原生 HTML + CSS + JavaScript，全部逻辑与样式内联在本文件内。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>大学生一周学习计划生成器</title>
+<style>
+/* ============================================================
+   1. 主题变量与基础重置
+   ============================================================ */
+:root{
+  --bg:#f3f8f7;
+  --card:#ffffff;
+  --ink:#102e2c;
+  --ink-soft:#43605d;
+  --muted:#7b918f;
+  --brand:#0f8f88;
+  --brand-strong:#0a6d67;
+  --brand-soft:#e3f4f2;
+  --brand-line:#bfe2de;
+  --line:#ddeae8;
+  --warn:#9a5b06;
+  --warn-bg:#fdf6e8;
+  --danger:#b4472f;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(16,46,44,.05), 0 10px 26px rgba(16,46,44,.055);
+}
+
+*{ box-sizing:border-box; }
+
+html,body{ margin:0; padding:0; }
+
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+              "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+h1,h2,h3,p,ul,ol,blockquote{ margin:0; }
+ul,ol{ padding:0; list-style:none; }
+
+/* ============================================================
+   2. 页面骨架
+   ============================================================ */
+.page{
+  max-width:900px;
+  margin:0 auto;
+  padding:30px 16px 80px;
+}
+
+/* 首屏标题区 */
+.hero{ margin-bottom:22px; }
+
+.hero h1{
+  font-size:clamp(1.55rem, 4.4vw, 2.05rem);
+  line-height:1.3;
+  letter-spacing:-.01em;
+  font-weight:700;
+  color:var(--ink);
+}
+
+.hero .subtitle{
+  margin-top:10px;
+  color:var(--ink-soft);
+  font-size:15px;
+  max-width:46em;
+}
+
+/* 通用卡片 */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:22px 20px;
+}
+
+.card + .card{ margin-top:16px; }
+
+.card-title{
+  font-size:17px;
+  font-weight:700;
+  letter-spacing:.01em;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.card-title::before{
+  content:"";
+  width:4px;
+  height:16px;
+  border-radius:2px;
+  background:var(--brand);
+  flex:none;
+}
+
+.card-note{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:13.5px;
+}
+
+/* ============================================================
+   3. 表单：选项组（chip 单选）
+   ============================================================ */
+.form-card{ padding-bottom:26px; }
+
+.field{
+  border:0;
+  margin:0;
+  padding:0;
+}
+
+.field + .field{
+  margin-top:22px;
+  padding-top:20px;
+  border-top:1px dashed var(--line);
+}
+
+.field legend{
+  font-size:15px;
+  font-weight:700;
+  color:var(--ink);
+  padding:0;
+  margin-bottom:11px;
+}
+
+.field legend .num{
+  display:inline-block;
+  min-width:20px;
+  color:var(--brand);
+  font-variant-numeric:tabular-nums;
+}
+
+.chips{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(148px, 1fr));
+  gap:10px;
+}
+
+.chip{ display:block; position:relative; }
+
+.chip input{
+  position:absolute;
+  width:1px; height:1px;
+  opacity:0;
+  margin:0;
+  pointer-events:none;
+}
+
+.chip span{
+  display:block;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fbfdfd;
+  color:var(--ink-soft);
+  font-size:15px;
+  text-align:center;
+  cursor:pointer;
+  transition:background-color .15s ease, border-color .15s ease, color .15s ease;
+  user-select:none;
+}
+
+.chip span:hover{ border-color:var(--brand-line); background:#f4fbfa; }
+
+.chip input:checked + span{
+  border-color:var(--brand);
+  background:var(--brand-soft);
+  color:var(--brand-strong);
+  font-weight:600;
+  box-shadow:inset 0 0 0 1px var(--brand);
+}
+
+.chip input:focus-visible + span{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+}
+
+/* 未选择时的错误提示 */
+.field.is-invalid legend{ color:var(--danger); }
+.field.is-invalid .chip span{ border-color:#e8c4bb; }
+.field.is-invalid .chip input:focus-visible + span{ outline-color:var(--danger); }
+.field-error{
+  display:none;
+  margin-top:9px;
+  font-size:13px;
+  color:var(--danger);
+}
+.field.is-invalid .field-error{ display:block; }
+
+/* ============================================================
+   4. 按钮与操作区
+   ============================================================ */
+.actions{
+  margin-top:22px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:11px;
+  align-items:center;
+}
+
+.btn{
+  font-family:inherit;
+  font-size:15px;
+  font-weight:600;
+  line-height:1.2;
+  padding:12px 20px;
+  border-radius:10px;
+  border:1px solid transparent;
+  cursor:pointer;
+  transition:background-color .15s ease, border-color .15s ease, color .15s ease;
+  min-height:44px;
+}
+
+.btn:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+.btn-primary{
+  background:var(--brand);
+  color:#fff;
+  border-color:var(--brand);
+}
+.btn-primary:hover:not(:disabled){ background:var(--brand-strong); border-color:var(--brand-strong); }
+
+.btn-ghost{
+  background:#fff;
+  color:var(--brand-strong);
+  border-color:var(--brand-line);
+}
+.btn-ghost:hover:not(:disabled){ background:var(--brand-soft); }
+
+.btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.actions .spacer{ flex:1 1 auto; }
+
+/* 全局提示条（校验 / 状态） */
+.notice{
+  display:none;
+  margin-top:16px;
+  padding:12px 14px;
+  border-radius:10px;
+  font-size:14px;
+  border:1px solid #f0d9ac;
+  background:var(--warn-bg);
+  color:var(--warn);
+}
+.notice.is-visible{ display:block; }
+.notice.is-info{
+  border-color:var(--brand-line);
+  background:var(--brand-soft);
+  color:var(--brand-strong);
+}
+
+/* ============================================================
+   5. 结果区
+   ============================================================ */
+#resultSection[hidden]{ display:none; }
+
+#resultSection{ margin-top:22px; }
+
+/* 结果过期提示 */
+.stale-bar{
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:12px 14px;
+  margin-bottom:14px;
+  border-radius:10px;
+  background:var(--warn-bg);
+  border:1px solid #f0d9ac;
+  color:var(--warn);
+  font-size:14px;
+}
+.stale-bar.is-visible{ display:flex; }
+.stale-bar .btn{ min-height:36px; padding:8px 14px; font-size:14px; }
+
+/* 概览 */
+.summary-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.summary-task{
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:-.01em;
+}
+
+.summary-task .tag{
+  display:inline-block;
+  margin-left:8px;
+  vertical-align:2px;
+  padding:3px 9px;
+  border-radius:999px;
+  background:var(--brand-soft);
+  border:1px solid var(--brand-line);
+  color:var(--brand-strong);
+  font-size:12.5px;
+  font-weight:700;
+}
+
+.meta-list{
+  margin-top:14px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.meta-item{
+  padding:5px 11px;
+  border-radius:8px;
+  background:#f6faf9;
+  border:1px solid var(--line);
+  font-size:13.5px;
+  color:var(--ink-soft);
+}
+.meta-item b{ color:var(--ink); font-weight:600; }
+
+/* 优先事项 */
+.priority-card{
+  margin-top:16px;
+  background:linear-gradient(180deg,#f2fbfa 0%, #ffffff 100%);
+  border:1px solid var(--brand-line);
+  border-radius:var(--radius);
+  padding:18px 20px;
+}
+
+.priority-list li{
+  display:flex;
+  gap:10px;
+  padding:8px 0;
+  font-size:15px;
+  color:var(--ink);
+}
+.priority-list li + li{ border-top:1px dashed var(--brand-line); }
+
+.priority-list .idx{
+  flex:none;
+  width:22px; height:22px;
+  margin-top:2px;
+  border-radius:50%;
+  background:var(--brand);
+  color:#fff;
+  font-size:12.5px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-variant-numeric:tabular-nums;
+}
+
+/* 每日安排 */
+.days{ margin-top:16px; }
+
+.day-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px 18px;
+}
+.day-card + .day-card{ margin-top:11px; }
+
+.day-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding-bottom:11px;
+  border-bottom:1px solid var(--line);
+}
+
+.day-name{
+  font-size:16px;
+  font-weight:700;
+}
+
+.day-mode{
+  margin-left:8px;
+  font-size:12px;
+  font-weight:600;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#f1f6f5;
+  color:var(--muted);
+  border:1px solid var(--line);
+}
+.day-mode.focus{
+  background:var(--brand-soft);
+  border-color:var(--brand-line);
+  color:var(--brand-strong);
+}
+
+.day-total{
+  font-size:13px;
+  color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+
+/* 单个时段任务 */
+.session{
+  padding:13px 0;
+}
+.session + .session{ border-top:1px dashed var(--line); }
+
+.session-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+}
+
+.slot{
+  flex:none;
+  padding:2px 9px;
+  border-radius:6px;
+  background:#eef4ff;
+  border:1px solid #d6e2f8;
+  color:#31518f;
+  font-size:12.5px;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+
+.session-title{
+  flex:1 1 240px;
+  font-size:15.5px;
+  font-weight:600;
+  color:var(--ink);
+}
+
+.session-mins{
+  flex:none;
+  font-size:13px;
+  color:var(--brand-strong);
+  background:var(--brand-soft);
+  border:1px solid var(--brand-line);
+  border-radius:6px;
+  padding:2px 8px;
+  font-variant-numeric:tabular-nums;
+  font-weight:600;
+}
+
+.session-done{
+  margin-top:7px;
+  padding-left:2px;
+  font-size:14px;
+  color:var(--ink-soft);
+}
+.session-done .label{
+  color:var(--muted);
+  font-weight:600;
+  margin-right:6px;
+}
+
+/* 不要做的事 */
+.avoid-card{
+  margin-top:16px;
+  background:#fffdf8;
+  border:1px solid #f0e3c8;
+  border-radius:var(--radius);
+  padding:18px 20px;
+}
+
+.avoid-list li{
+  display:flex;
+  gap:10px;
+  padding:7px 0;
+  font-size:15px;
+  color:#6b5327;
+}
+.avoid-list .mark{
+  flex:none;
+  width:18px; height:18px;
+  margin-top:3px;
+  border-radius:50%;
+  background:#f6e7cb;
+  color:#8a6526;
+  font-size:12px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* 鼓励语 */
+.encourage{
+  margin-top:16px;
+  padding:16px 18px;
+  border-left:3px solid var(--brand);
+  background:#f7fbfa;
+  border-radius:0 var(--radius) var(--radius) 0;
+  font-size:15px;
+  color:var(--ink);
+}
+.encourage .label{
+  display:block;
+  font-size:12.5px;
+  font-weight:700;
+  letter-spacing:.06em;
+  color:var(--brand-strong);
+  margin-bottom:5px;
+}
+
+/* 结果底部操作 */
+.result-actions{
+  margin-top:18px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:11px;
+}
+
+/* ============================================================
+   6. 轻提示（toast）
+   ============================================================ */
+#toast{
+  position:fixed;
+  left:50%;
+  bottom:28px;
+  transform:translate(-50%, 12px);
+  z-index:50;
+  padding:10px 18px;
+  border-radius:999px;
+  background:#12312f;
+  color:#fff;
+  font-size:14px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+  max-width:calc(100% - 32px);
+}
+#toast.is-visible{
+  opacity:1;
+  transform:translate(-50%, 0);
+}
+
+/* ============================================================
+   7. 响应式适配
+   ============================================================ */
+@media (max-width:600px){
+  .page{ padding:22px 13px 70px; }
+  .card{ padding:18px 15px; }
+  .chips{ grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .chip span{ padding:11px 6px; font-size:14px; }
+  .actions .btn{ flex:1 1 100%; }
+  .actions .spacer{ display:none; }
+  .result-actions .btn{ flex:1 1 100%; }
+  .summary-task{ font-size:18px; }
+  .day-card{ padding:14px 14px; }
+  .session-title{ flex:1 1 100%; order:3; }
+  .session-mins{ margin-left:auto; }
+  .session-done{ font-size:13.5px; }
+}
+
+@media (min-width:760px){
+  .days{ display:block; }
+}
+
+/* 尊重系统的“减少动态效果”设置 */
+@media (prefers-reduced-motion: reduce){
+  *{ transition:none !important; animation:none !important; }
+}
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <!-- ============ 首屏标题 ============ -->
+  <header class="hero">
+    <h1>大学生一周学习计划生成器</h1>
+    <p class="subtitle">根据你的任务、可用时间和薄弱项，生成一周学习安排。</p>
+  </header>
+
+  <!-- ============ 输入区 ============ -->
+  <section class="card form-card" aria-labelledby="formTitle">
+    <h2 class="card-title" id="formTitle">先做四个选择</h2>
+    <p class="card-note">四项都选完才能生成计划。所有计算都在你的浏览器里完成，不上传任何信息。</p>
+
+    <form id="planForm" novalidate style="margin-top:20px;">
+
+      <!-- 1 当前任务 -->
+      <fieldset class="field" data-field="task">
+        <legend><span class="num">1.</span> 当前任务</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="task" value="review"><span>复习备考</span></label>
+          <label class="chip"><input type="radio" name="task" value="homework"><span>完成作业</span></label>
+          <label class="chip"><input type="radio" name="task" value="cert"><span>考证准备</span></label>
+          <label class="chip"><input type="radio" name="task" value="thesis"><span>毕业设计资料整理</span></label>
+        </div>
+        <p class="field-error">请先选择当前任务</p>
+      </fieldset>
+
+      <!-- 2 每天可用时间 -->
+      <fieldset class="field" data-field="time">
+        <legend><span class="num">2.</span> 每天可用时间</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="time" value="t1"><span>1 小时以内</span></label>
+          <label class="chip"><input type="radio" name="time" value="t2"><span>1～2 小时</span></label>
+          <label class="chip"><input type="radio" name="time" value="t3"><span>2～3 小时</span></label>
+          <label class="chip"><input type="radio" name="time" value="t4"><span>3 小时以上</span></label>
+        </div>
+        <p class="field-error">请先选择每天可用时间</p>
+      </fieldset>
+
+      <!-- 3 薄弱项 -->
+      <fieldset class="field" data-field="weak">
+        <legend><span class="num">3.</span> 薄弱项</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="weak" value="concept"><span>概念理解</span></label>
+          <label class="chip"><input type="radio" name="weak" value="calc"><span>计算练习</span></label>
+          <label class="chip"><input type="radio" name="weak" value="organize"><span>资料整理</span></label>
+          <label class="chip"><input type="radio" name="weak" value="express"><span>表达输出</span></label>
+        </div>
+        <p class="field-error">请先选择薄弱项</p>
+      </fieldset>
+
+      <!-- 4 截止紧迫度 -->
+      <fieldset class="field" data-field="urgency">
+        <legend><span class="num">4.</span> 一周内截止时间</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="urgency" value="urgent"><span>很紧急</span></label>
+          <label class="chip"><input type="radio" name="urgency" value="within"><span>一周内</span></label>
+          <label class="chip"><input type="radio" name="urgency" value="loose"><span>时间较宽松</span></label>
+        </div>
+        <p class="field-error">请先选择截止紧迫度</p>
+      </fieldset>
+
+      <!-- 操作按钮 -->
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" id="generateBtn">生成本周计划</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" id="resetBtn">重新生成</button>
+      </div>
+
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <!-- ============ 结果区 ============ -->
+  <section id="resultSection" aria-live="polite" hidden>
+
+    <!-- 选项变更后的过期提示 -->
+    <div class="stale-bar" id="staleBar">
+      <span>选项已更改，当前计划已过期，需要重新生成。</span>
+      <button type="button" class="btn btn-primary" id="regenInlineBtn">按新选项生成</button>
+    </div>
+
+    <!-- 概览 -->
+    <div class="card">
+      <div class="summary-head">
+        <div>
+          <h2 class="summary-task" id="summaryTask"></h2>
+          <div class="meta-list" id="summaryMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 本周优先事项 -->
+    <div class="card priority-card">
+      <h2 class="card-title" style="margin-bottom:6px;">本周优先事项</h2>
+      <p class="card-note" style="margin-bottom:8px;">这一周只对这三件事负责，其余都是加分项。</p>
+      <ol class="priority-list" id="priorityList"></ol>
+    </div>
+
+    <!-- 每日安排 -->
+    <div class="days" id="dayList"></div>
+
+    <!-- 不要做的事 -->
+    <div class="card avoid-card">
+      <h2 class="card-title" style="margin-bottom:6px;">先不要分散精力做的事</h2>
+      <p class="card-note" style="margin-bottom:8px;">这些事看着有用，但这一周会偷走你的时间。</p>
+      <ul class="avoid-list" id="avoidList"></ul>
+    </div>
+
+    <!-- 鼓励 -->
+    <blockquote class="encourage">
+      <span class="label">本周一句</span>
+      <span id="encourageText"></span>
+    </blockquote>
+
+    <!-- 结果操作 -->
+    <div class="result-actions">
+      <button type="button" class="btn btn-primary" id="copyBtn">复制计划文本</button>
+      <button type="button" class="btn btn-ghost" id="downloadBtn">导出 .txt 文件</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- 轻提示 -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   第 1 段：静态配置（选项标签、时间预算、节奏规则）
+   ============================================================ */
+
+// 每天可用时间 → 单词投入时长（分钟）与任务段数
+// 原则：时间越少，段数越少，计划越集中
+const TIME_CONFIG = {
+  t1: { label:'1 小时以内', minutes:50,  sessions:1 },
+  t2: { label:'1～2 小时',  minutes:100, sessions:2 },
+  t3: { label:'2～3 小时',  minutes:150, sessions:2 },
+  t4: { label:'3 小时以上', minutes:210, sessions:3 }
+};
+
+// 不同任务段数对应的时段
+const SLOTS_BY_COUNT = {
+  1: ['晚上'],
+  2: ['傍晚', '晚上'],
+  3: ['上午', '傍晚', '晚上']
+};
+
+const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日'];
+
+// 轻量日投入（分钟）
+const LIGHT_MINUTES = 25;
+
+// 截止紧迫度 → 一周节奏
+// modes：focus = 正常投入日，light = 轻量日
+// drillEvery：每隔几天做一次薄弱项专项（数字越小频率越高）
+const URGENCY_CONFIG = {
+  urgent: {
+    label: '很紧急',
+    modes: ['focus','focus','focus','focus','focus','focus','focus'],
+    drillEvery: 1
+  },
+  within: {
+    label: '一周内',
+    modes: ['focus','focus','focus','focus','focus','focus','light'],
+    drillEvery: 2
+  },
+  loose: {
+    label: '时间较宽松',
+    modes: ['focus','light','focus','light','focus','focus','light'],
+    drillEvery: 3
+  }
+};
+
+const WEAK_LABEL = {
+  concept: '概念理解',
+  calc: '计算练习',
+  organize: '资料整理',
+  express: '表达输出'
+};
+
+// 薄弱项 → 本周优先事项（与任务无关的通用打法，但都指向可执行动作）
+const WEAK_PRIORITY = {
+  concept: '把“合上书复述”当成硬指标：每天至少有一次不看资料讲清一个知识点。',
+  calc:     '错题必须重做一遍，重做对了才算这道题结束。',
+  organize: '先建清单再往里填内容，别让资料散在十几个窗口和相册里。',
+  express:  '每天留一次“说出来或写出来”的机会，只看不输入等于没学。'
+};
+
+// 薄弱项 → 一句鼓励（具体、不空喊）
+const ENCOURAGE_TEXT = {
+  concept: '把定义合上书复述一遍，比再读三遍都管用——这周你每天都有一次这样的机会。',
+  calc:    '计算题不靠看懂，靠手熟；这周你重做的每一道错题，都是考场上少丢的那几分。',
+  organize:'资料一乱，复习就只能从零开始；这周把清单建起来，下周你会省下大把时间。',
+  express: '写不出来多半是没先想清楚；先提纲后成文，速度会比硬憋快一倍。'
+};
+
+/* ============================================================
+   第 2 段：内容库（任务 × 薄弱项）
+   每个任务包含：核心任务序列、四类薄弱项专项、优先事项、不要做的事
+   ============================================================ */
+
+const TASK_PLANS = {
+
+  /* ---------- 复习备考 ---------- */
+  review: {
+    label: '复习备考',
+    core: [
+      { t:'列出本周要复习的章节清单，按“考到的概率 × 自己掌握程度”排序',
+        d:'每章都有 1～5 的掌握度打分，最差的两章排在最前面' },
+      { t:'先过一遍最优先章节的框架：目录、标题、关键词',
+        d:'合上书能用 5 句话说清这一章在讲什么' },
+      { t:'精读该章重点小节，边读边写批注（定义、成立条件、易错点）',
+        d:'每节至少留下 3 条自己写的批注，不是划线' },
+      { t:'限时做该章的课后题或往年题',
+        d:'完成至少 10 题，错题标出错因（不会 / 看错 / 算错）' },
+      { t:'错题回炉：把错题重做一遍，写下正确思路的第一步',
+        d:'每道错题都能不看答案说出第一步该做什么' },
+      { t:'背记高频考点清单：定义、公式、结论',
+        d:'随机抽背 10 条，能默写出 8 条以上' },
+      { t:'整套限时自测，按考试的时间要求做完',
+        d:'记录得分和失分模块，知道自己差在哪' },
+      { t:'只看自测里丢分最多的两个模块，补一页笔记',
+        d:'两个模块各补 1 页，能复述关键结论' }
+    ],
+    drills: {
+      concept: [
+        { t:'把最容易混的 3 个概念做成对比表：定义 / 区别 / 一个例子',
+          d:'三列都填满，能指着任意一行讲 30 秒' },
+        { t:'不看书画一张这一章的思维导图，画完再对照书补漏',
+          d:'导图不少于 3 层，补漏处用不同颜色标出来' },
+        { t:'把这一章的核心概念按“是什么 / 为什么 / 怎么用”三栏写一遍',
+          d:'三栏都填满，能拿这张纸给别人讲 2 分钟' }
+      ],
+      calc: [
+        { t:'限时做 10 道计算题，做完只看错题，标出错在哪一步',
+          d:'10 题做完，每道错题都写了错因和正确第一步' },
+        { t:'把同一类计算题的解法固定成 3 步模板，再用 3 道新题验证',
+          d:'3 道新题都能按模板独立做完，不看例题' },
+        { t:'把错题的计算步骤一步步写全，标出自己最容易跳的那一步',
+          d:'每道错题都标出了跳步的位置，并能说清为什么不能跳' }
+      ],
+      organize: [
+        { t:'把这一周的笔记、讲义、题目按章节归档，列出还缺的知识点',
+          d:'每章一叠或一个文件夹，缺的知识点写成待补清单' },
+        { t:'整理一张“考点 × 教材页码 × 题目编号”对照表',
+          d:'表里至少覆盖 10 个考点，随手能翻到原文' },
+        { t:'把这一周的错题按章节分装，错得多的章节单独放一叠',
+          d:'每叠都有标签，一眼能看出哪一章最薄' }
+      ],
+      express: [
+        { t:'合上书，用 3 分钟口述这一章的逻辑，录音后回听',
+          d:'能连续讲满 3 分钟，卡壳处记下来回去补' },
+        { t:'写一份 200 字的“这章讲了什么”，假设读者没学过',
+          d:'摘要里没有抄原句，别人能看懂大意' },
+        { t:'挑 2 道大题，先写答题提纲再补内容，每题控制在 8 分钟内',
+          d:'2 道的提纲都在 8 分钟内写完，结构完整能直接往里填' }
+      ]
+    },
+    priority: '把最可能考的 2 个章节过完两轮：先懂框架，再做对题。',
+    roundNote: '（换一章再来一轮）',
+    extras: [
+      { t:'换一章，重复“框架 → 精读 → 做题”的流程，挑掌握度第二差的那章',
+        d:'合上书写出这章的 5 个关键词，并做对 5 道题' },
+      { t:'把这周所有错题合并成一张错题清单，按错因分组',
+        d:'每题都有错因标签，同类错因归在一起' },
+      { t:'整周复盘：写下最没把握的 3 个考点，安排到下周',
+        d:'3 个考点写清楚，各配一个具体的补法' }
+    ],
+    avoid: [
+      '不要开新章节：这周的任务是把学过的内容变成能拿分的内容。',
+      '不要花时间排漂亮的笔记版式，笔记只要自己看得懂就行。',
+      '不要和别人比进度，按自己的掌握度清单往下走。'
+    ]
+  },
+
+  /* ---------- 完成作业 ---------- */
+  homework: {
+    label: '完成作业',
+    core: [
+      { t:'通读作业要求，把要交的东西一条条列出来（格式、字数、截止时间）',
+        d:'每条都能对应到作业原文的哪一句' },
+      { t:'拆成最小步骤，排出先后顺序，标出最难的一块',
+        d:'步骤不超过 6 步，每步都能在一段时间内做完' },
+      { t:'先做最难的那一部分，趁精力最好的时候动它',
+        d:'最难部分有初稿，哪怕很粗糙' },
+      { t:'完成主体部分：先写完，再写好',
+        d:'全文或全部题目都有完整初稿，不留空白' },
+      { t:'检查格式、引用、字数、题目要求是否都覆盖',
+        d:'对照第 1 步的清单逐条打勾' },
+      { t:'通读一遍，改掉表述不清和重复的句子',
+        d:'至少删掉 10% 的冗余文字，或改顺 5 处不通顺' },
+      { t:'提交前最后确认文件名、格式和提交方式',
+        d:'按老师要求的命名和格式提交成功，留一份本地备份' }
+    ],
+    drills: {
+      concept: [
+        { t:'先查清作业涉及的 2 个核心概念，用自己的话写 3 行解释再动笔',
+          d:'3 行解释里没有抄定义原文' },
+        { t:'把作业要求里出现的专业词逐个翻成大白话，写在草稿边上',
+          d:'每个词都有一句自己的解释，写的时候不用再查' },
+        { t:'找一份同类作业的范文，标出它的结构和你的差别',
+          d:'标出 3 处可借鉴的结构，写进自己的提纲' }
+      ],
+      calc: [
+        { t:'把作业里的计算部分单独拿出来先算一遍，再誊进正文',
+          d:'计算有独立草稿，结果能复核一遍' },
+        { t:'做完后用另一种方法（或计算器）验算结果',
+          d:'两种方法结果一致，或差异已找到原因' },
+        { t:'把作业里的关键数据做成一张小表，标出单位和来源',
+          d:'每个数据都有单位和出处，正文引用不再对不上' }
+      ],
+      organize: [
+        { t:'把参考资料按“可直接引用 / 仅作参考 / 无关”分成三堆，列引用清单',
+          d:'清单每条都有出处，无关资料这周不再打开' },
+        { t:'把要用的数据、图表、引用放进一个文件夹，命名清楚',
+          d:'所有素材一次就能找到，不用再翻聊天记录' },
+        { t:'先列出作业的骨架清单（每部分写什么），再往骨架里填',
+          d:'清单 5 条以内，每条能对应正文的一段' }
+      ],
+      express: [
+        { t:'先用 5 行写出提纲和每段的第一句，再往骨架里填内容',
+          d:'提纲 5 行齐全，每段第一句就是这段的结论' },
+        { t:'写完一段就念一遍，读着别扭的地方改到顺口',
+          d:'全文念过一遍，没有需要重读才能懂的句子' },
+        { t:'把作业的核心结论先写成一句话，再解释为什么',
+          d:'这一句话能概括全文，且和正文不矛盾' }
+      ]
+    },
+    priority: '集中火力把作业做出完整初稿，别在细节上反复打磨。',
+    roundNote: '（回头再过一遍）',
+    extras: [
+      { t:'回头检查已完成的部分，改掉最不满意的两处',
+        d:'两处改完，自己读一遍明显比初稿顺' },
+      { t:'把这次的写法整理成一段笔记：下次同类作业怎么更快',
+        d:'笔记不超过 5 行，下次能直接照着做' },
+      { t:'确认提交状态，并把源文件和备份归到同一个地方',
+        d:'提交记录、源文件、备份三样都能找到' }
+    ],
+    avoid: [
+      '不要一边写一边查资料，先把资料备齐再动笔，避免来回切换。',
+      '不要在还没写完初稿时反复改第一段。',
+      '不要为了排版去折腾新软件和新模板，够用就行。'
+    ]
+  },
+
+  /* ---------- 考证准备 ---------- */
+  cert: {
+    label: '考证准备',
+    core: [
+      { t:'对照考纲圈出本周要覆盖的模块，标出分值占比',
+        d:'圈出的模块有明确分值和页数，知道要花多久' },
+      { t:'通读该模块教材，把考点逐个标出来',
+        d:'每个考点都能在考纲里找到对应条目' },
+      { t:'刷该模块的选择题，一次不少于 20 题',
+        d:'正确率有记录，错题标了题号' },
+      { t:'错题回看教材对应段落，把关键句抄一遍',
+        d:'每道错题都能指到教材哪一页' },
+      { t:'背记高频考点清单：数字、年限、分类、例外',
+        d:'抽背 10 条，能答对 8 条' },
+      { t:'限时做一套真题里的该模块',
+        d:'按考试时长做完，分数写下来和上次比' },
+      { t:'把易错的数字和例外单独抄成一张小卡片',
+        d:'卡片一页装得下，随身能看' },
+      { t:'复盘：本周哪些题型还在错，下周先攻它',
+        d:'写下 3 个还在错的题型，并标出原因' }
+    ],
+    drills: {
+      concept: [
+        { t:'把考纲里的 5 个高频概念各写一句话定义，然后不看书复述',
+          d:'5 个定义都能不看书写出来' },
+        { t:'把最容易混的两组概念做成对比表：判断标准 / 典型例子',
+          d:'两组都能各举一个例子，把区别说清' },
+        { t:'把该模块的知识点串成一条主线，用 5 句话说清逻辑',
+          d:'5 句话能连起来，中间不跳步' }
+      ],
+      calc: [
+        { t:'限时 20 分钟做该模块的计算或数量题，错题当场重做',
+          d:'错题重做后全对，或写下第二次仍错的原因' },
+        { t:'把常考的 3 类计算题型各做 5 道，记下标准解法步骤',
+          d:'3 类题型都有固定步骤，能背下来' },
+        { t:'专攻错得最多的那一类题，连做 10 道直到全对',
+          d:'连续 10 道全对，或错的那道能讲清错在哪' }
+      ],
+      organize: [
+        { t:'整理该模块资料：考纲条目 × 教材页码 × 真题题号，做成一张表',
+          d:'表里一行一个考点，能一眼看出哪个还没刷题' },
+        { t:'把该模块的笔记压成一页 A4，只留考点和易错点',
+          d:'一页装得下，能当考前最后一眼看的纸' },
+        { t:'整理错题本：按考点归类，每题写一句错因',
+          d:'每道错题都有归类和错因，能按考点整块翻' }
+      ],
+      express: [
+        { t:'用 3 分钟口述该模块的答题模板，再默写关键词',
+          d:'模板能说完整，关键词默写出 80%' },
+        { t:'把该模块的答题模板写成固定 3 步，遇到题就往里套',
+          d:'3 步模板能默写，套到 2 道真题上步骤不乱' },
+        { t:'找 2 道主观题，先写自己的要点，再对照答案补差',
+          d:'两次都能写出 3 个以上要点，差额已标出来' }
+      ]
+    },
+    priority: '按考纲分值排序推进，先拿下占分最高的那个模块。',
+    roundNote: '（换一个模块再来一轮）',
+    extras: [
+      { t:'换下一个模块，重复“教材 → 刷题 → 错题回看”的流程',
+        d:'新模块的做题正确率有记录，错题已标注' },
+      { t:'把本周错题按考点归类，统计错得最多的 2 个考点',
+        d:'统计结果写下来，能看出错误集中在哪' },
+      { t:'整周复盘：做一次小测，检验本周模块的掌握度',
+        d:'分数有记录，能说出进步在哪、漏洞在哪' }
+    ],
+    avoid: [
+      '不要收集新的资料和网课，手上的教材和题库已经够了。',
+      '不要只刷视频不做题，看完不等于会做。',
+      '不要跳过错题直接刷新题，错题才是提分点。'
+    ]
+  },
+
+  /* ---------- 毕业设计资料整理 ---------- */
+  thesis: {
+    label: '毕业设计资料整理',
+    core: [
+      { t:'明确本周要推进的那一块：选题 / 文献 / 数据 / 框架',
+        d:'用一句话写下本周的交付物是什么' },
+      { t:'按关键词检索并下载一批文献，10 篇起',
+        d:'文献都在同一个文件夹里，文件名带年份和作者' },
+      { t:'只读摘要和结论，筛出真正要精读的 3～5 篇',
+        d:'每篇留下“为什么留它”的一句话理由' },
+      { t:'精读这几篇，写文献卡片：问题 / 方法 / 结论 / 可借鉴点',
+        d:'每篇一张卡片，四栏都填满' },
+      { t:'把卡片整理成文献综述提纲，按主题分组',
+        d:'至少 3 个主题，每个主题下有 2 篇以上支撑' },
+      { t:'写 300～500 字的研究问题或综述段落',
+        d:'段落里有引用，也有自己的判断句' },
+      { t:'统一引用格式，整理文献列表',
+        d:'正文引用都能对上文献列表，格式一致' },
+      { t:'记录下周要补的缺口：缺哪类文献、缺哪些数据',
+        d:'写成 3 条以内的待补清单' }
+    ],
+    drills: {
+      concept: [
+        { t:'把 3 篇核心文献的理论框架画成一张对照图，标出差异',
+          d:'图上能看出 3 篇的共同点和分歧点' },
+        { t:'把核心概念的界定抄进文献卡片，比较不同文献的定义差异',
+          d:'至少 2 篇的定义差异写清楚，并能说清你采用哪个' },
+        { t:'用一段话解释你的研究问题在理论上的位置',
+          d:'这段话能说清“接的是哪条研究线”' }
+      ],
+      calc: [
+        { t:'把已有的实验或调研数据做成一张表，核对一遍并标出异常值',
+          d:'每个数字都能追到原始记录，异常值有标注' },
+        { t:'把关键指标算一遍，写下计算公式和数据来源',
+          d:'每个指标都有公式和来源，别人能照着复算' },
+        { t:'抽查 10% 的原始数据，核对录入有没有错',
+          d:'抽查有记录，发现的错误已更正' }
+      ],
+      organize: [
+        { t:'建文献管理表：作者 / 年份 / 方法 / 结论 / 可引用点，文件统一命名',
+          d:'每篇文献都有编号，能按编号找到对应 PDF' },
+        { t:'把文献按主题分文件夹，每个文件夹写一句主题说明',
+          d:'每个文件夹都有说明，能按主题直接找到文献' },
+        { t:'建一张“待读 / 已读 / 已引用”的状态表',
+          d:'每篇文献都有状态，已引用的能对应到正文具体位置' }
+      ],
+      express: [
+        { t:'写 300 字的研究问题陈述，再花 2 分钟讲给自己听',
+          d:'说清了“研究什么、为什么值得研究”' },
+        { t:'把综述提纲扩写成 3 段，每段先写主题句',
+          d:'3 段都有主题句，段内不跑题' },
+        { t:'做一次 5 分钟汇报演练，录音后找出讲不清的地方',
+          d:'录音里逻辑能顺着听下来，卡壳处不超过 2 处' }
+      ]
+    },
+    priority: '本周只推进一块（文献或数据或框架），做完再开下一块。',
+    roundNote: '（再走一遍）',
+    extras: [
+      { t:'把本周产生的卡片和表格统一归档，文件名一次命名到位',
+        d:'所有文件按“主题_年份_作者”命名，一眼能找到' },
+      { t:'重读自己写的段落，标出还需要补文献的 3 个位置',
+        d:'3 个位置都写清了“要补什么类型的文献”' },
+      { t:'写 5 行本周进展记录，供下次和导师沟通用',
+        d:'5 行说清做了什么、卡在哪、下一步是什么' }
+    ],
+    avoid: [
+      '不要一边看文献一边写正文，先读完、记好卡片，再动笔。',
+      '不要追求把文献找全，够撑住本周提纲就可以。',
+      '不要在格式排版上耗时间，内容先立起来。'
+    ]
+  }
+};
+
+// 截止紧迫度 → 优先事项与规避项补充
+const URGENCY_EXTRA = {
+  urgent: {
+    priority: '离截止很近：优先保证“做题 + 错题重做”的次数，覆盖面先放一边。',
+    avoid: '不要熬夜补时长，第二天效率掉下来更亏。'
+  },
+  within: {
+    priority: '一周内要交：周中过半时必须有一次完整自测，别把检验留到最后一天。',
+    avoid: '不要把整块任务堆到周末，那时候只剩赶工。'
+  },
+  loose: {
+    priority: '时间较宽松：把基础打扎实，宁可少推进一块，也不要留下没弄懂的地方。',
+    avoid: '不要同时开三条线，宽松的时间最容易被浪费掉。'
+  }
+};
+
+/* ============================================================
+   第 3 段：工具函数
+   ============================================================ */
+
+// 把总分钟数按权重切分到各时段，取 5 分钟整
+function splitMinutes(total, count) {
+  if (count <= 1) return [total];
+  const weights = count === 2 ? [0.5, 0.5] : [0.35, 0.35, 0.30];
+  const parts = weights.map(w => Math.round(total * w / 5) * 5);
+  const diff = total - parts.reduce((a, b) => a + b, 0);
+  parts[parts.length - 1] += diff;
+  return parts;
+}
+
+// 分钟数转可读文本
+function formatDuration(minutes) {
+  if (minutes < 60) return minutes + ' 分钟';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? h + ' 小时' : h + ' 小时 ' + m + ' 分钟';
+}
+
+// 读取当前表单选择
+function readForm() {
+  const form = document.getElementById('planForm');
+  const data = new FormData(form);
+  return {
+    task: data.get('task') || '',
+    time: data.get('time') || '',
+    weak: data.get('weak') || '',
+    urgency: data.get('urgency') || ''
+  };
+}
+
+/* ============================================================
+   第 4 段：核心生成逻辑
+   规则落地：
+   - 紧迫度决定一周有几天投入、薄弱项专项的频率
+   - 每天可用时间决定任务段数，时间越少段数越少、越集中
+   - 薄弱项专项放在当天最后一个时段，优先保住“练”的时间
+   ============================================================ */
+function buildPlan(input) {
+  const taskPlan = TASK_PLANS[input.task];
+  const urgency = URGENCY_CONFIG[input.urgency];
+  const timeCfg = TIME_CONFIG[input.time];
+  const drillUnits = taskPlan.drills[input.weak];
+
+  let coreCursor = 0;   // 核心任务游标
+  let drillCursor = 0;  // 薄弱项专项游标
+  const days = [];
+
+  // 核心任务序列 = 主流程 + 收尾动作。主流程走完后接收尾，避免机械重复第一个动作
+  const coreSequence = taskPlan.core.concat(taskPlan.extras);
+
+  // ---- 先算出这一周哪几天要安排薄弱项专项 ----
+  const focusDays = [];
+  urgency.modes.forEach((m, idx) => { if (m === 'focus') focusDays.push(idx); });
+
+  let drillDays;
+  if (timeCfg.sessions >= 2) {
+    // 一天有多个时段：专项只占当天最后一个时段，频率按紧迫度铺满投入日
+    drillDays = focusDays.filter((_, k) => k % urgency.drillEvery === 0);
+  } else {
+    // 一天只有一个时段：专项会占据整天，因此不放在第一天，并控制总量
+    const wanted = input.urgency === 'urgent' ? 3 : input.urgency === 'within' ? 2 : 1;
+    const poolDays = focusDays.slice(1);
+    const drillTotal = Math.min(wanted, poolDays.length);
+    drillDays = [];
+    for (let k = 0; k < drillTotal; k++) {
+      const pos = Math.max(0, Math.min(poolDays.length - 1,
+        Math.round((k + 1) * poolDays.length / (drillTotal + 1)) - 1));
+      if (drillDays.indexOf(poolDays[pos]) === -1) drillDays.push(poolDays[pos]);
+    }
+  }
+
+  for (let i = 0; i < DAY_NAMES.length; i++) {
+    const mode = urgency.modes[i];
+    const isLight = mode === 'light';
+    const sessionCount = isLight ? 1 : timeCfg.sessions;
+    const dayMinutes = isLight ? LIGHT_MINUTES : timeCfg.minutes;
+    const slots = SLOTS_BY_COUNT[sessionCount];
+    const durations = splitMinutes(dayMinutes, sessionCount);
+
+    // 轻量日不安排整套专项，只做低强度回看
+    const isDrillDay = !isLight && drillDays.indexOf(i) !== -1;
+
+    const sessions = [];
+
+    for (let s = 0; s < sessionCount; s++) {
+      const isLastSession = s === sessionCount - 1;
+
+      // 当天最后一个时段留给薄弱项专项
+      if (isLastSession && isDrillDay) {
+        const idx = drillCursor % drillUnits.length;
+        const round = Math.floor(drillCursor / drillUnits.length);
+        drillCursor++;
+        const unit = drillUnits[idx];
+        sessions.push({
+          slot: slots[s],
+          title: unit.t + (round > 0 ? '（限时压缩 20%，再做一轮）' : ''),
+          done: unit.d,
+          minutes: durations[s]
+        });
+        continue;
+      }
+
+      // 轻量日只保留低强度回看
+      if (isLight) {
+        sessions.push({
+          slot: slots[s],
+          title: '回看前两天记的东西，挑 3 条最容易忘的再看一遍',
+          done: '能默写或复述这 3 条，其余内容不重看',
+          minutes: durations[s]
+        });
+        continue;
+      }
+
+      // 常规核心任务
+      const idx = coreCursor % coreSequence.length;
+      const round = Math.floor(coreCursor / coreSequence.length);
+      coreCursor++;
+      const unit = coreSequence[idx];
+      sessions.push({
+        slot: slots[s],
+        title: unit.t + (round > 0 ? taskPlan.roundNote : ''),
+        done: unit.d,
+        minutes: durations[s]
+      });
+    }
+
+    days.push({
+      name: DAY_NAMES[i],
+      mode: mode,
+      minutes: dayMinutes,
+      sessions: sessions
+    });
+  }
+
+  const totalMinutes = days.reduce((sum, d) => sum + d.minutes, 0);
+
+  return {
+    taskLabel: taskPlan.label,
+    timeLabel: timeCfg.label,
+    weakLabel: WEAK_LABEL[input.weak],
+    urgencyLabel: urgency.label,
+    totalMinutes: totalMinutes,
+    priorities: [
+      taskPlan.priority,
+      WEAK_PRIORITY[input.weak],
+      URGENCY_EXTRA[input.urgency].priority
+    ],
+    days: days,
+    avoid: taskPlan.avoid.concat([URGENCY_EXTRA[input.urgency].avoid]),
+    encouragement: ENCOURAGE_TEXT[input.weak]
+  };
+}
+
+/* ============================================================
+   第 5 段：渲染
+   ============================================================ */
+
+let currentPlan = null;   // 当前生成的计划对象
+let isGenerating = false; // 防重复提交标记
+
+function renderPlan(plan) {
+  // 概览
+  document.getElementById('summaryTask').innerHTML =
+    plan.taskLabel + '<span class="tag">' + plan.urgencyLabel + '</span>';
+
+  document.getElementById('summaryMeta').innerHTML = [
+    '每天可用：<b>' + plan.timeLabel + '</b>',
+    '薄弱项：<b>' + plan.weakLabel + '</b>',
+    '本周总投入：<b>' + formatDuration(plan.totalMinutes) + '</b>'
+  ].map(text => '<span class="meta-item">' + text + '</span>').join('');
+
+  // 优先事项
+  document.getElementById('priorityList').innerHTML = plan.priorities.map((p, i) =>
+    '<li><span class="idx">' + (i + 1) + '</span><span>' + p + '</span></li>'
+  ).join('');
+
+  // 每日安排
+  document.getElementById('dayList').innerHTML = plan.days.map(day => {
+    const modeTag = day.mode === 'light'
+      ? '<span class="day-mode">轻量日</span>'
+      : '<span class="day-mode focus">投入日</span>';
+
+    const sessionHtml = day.sessions.map(s =>
+      '<div class="session">' +
+        '<div class="session-head">' +
+          '<span class="slot">' + s.slot + '</span>' +
+          '<span class="session-title">' + s.title + '</span>' +
+          '<span class="session-mins">' + s.minutes + ' 分钟</span>' +
+        '</div>' +
+        '<p class="session-done"><span class="label">完成标准</span>' + s.done + '</p>' +
+      '</div>'
+    ).join('');
+
+    return '<article class="day-card">' +
+      '<div class="day-head">' +
+        '<div><span class="day-name">' + day.name + '</span>' + modeTag + '</div>' +
+        '<span class="day-total">当天合计 ' + formatDuration(day.minutes) + '</span>' +
+      '</div>' +
+      sessionHtml +
+    '</article>';
+  }).join('');
+
+  // 不要做的事
+  document.getElementById('avoidList').innerHTML = plan.avoid.map(item =>
+    '<li><span class="mark">×</span><span>' + item + '</span></li>'
+  ).join('');
+
+  // 鼓励
+  document.getElementById('encourageText').textContent = plan.encouragement;
+}
+
+/* ============================================================
+   第 6 段：计划文本（复制 / 导出共用）
+   ============================================================ */
+function planToText(plan) {
+  const lines = [];
+
+  lines.push('大学生一周学习计划');
+  lines.push('任务类型：' + plan.taskLabel);
+  lines.push('每天可用时间：' + plan.timeLabel + '｜薄弱项：' + plan.weakLabel + '｜截止紧迫度：' + plan.urgencyLabel);
+  lines.push('本周总投入：约 ' + formatDuration(plan.totalMinutes));
+  lines.push('');
+
+  lines.push('【本周优先事项】');
+  plan.priorities.forEach((p, i) => lines.push((i + 1) + '. ' + p));
+  lines.push('');
+
+  plan.days.forEach(day => {
+    lines.push('【' + day.name + '】' + (day.mode === 'light' ? '轻量日' : '投入日') + '，合计 ' + day.minutes + ' 分钟');
+    day.sessions.forEach(s => {
+      lines.push('  · 时段：' + s.slot);
+      lines.push('    任务：' + s.title);
+      lines.push('    时长：' + s.minutes + ' 分钟');
+      lines.push('    完成标准：' + s.done);
+    });
+  });
+  lines.push('');
+
+  lines.push('【先不要分散精力做的事】');
+  plan.avoid.forEach(a => lines.push('- ' + a));
+  lines.push('');
+
+  lines.push('【本周一句】' + plan.encouragement);
+
+  return lines.join('\n');
+}
+
+/* ============================================================
+   第 7 段：交互绑定
+   ============================================================ */
+
+const form = document.getElementById('planForm');
+const noticeEl = document.getElementById('notice');
+const resultSection = document.getElementById('resultSection');
+const staleBar = document.getElementById('staleBar');
+const generateBtn = document.getElementById('generateBtn');
+const toastEl = document.getElementById('toast');
+
+let toastTimer = null;
+
+// 轻提示
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 1900);
+}
+
+// 顶部提示条
+function showNotice(text, isInfo) {
+  noticeEl.textContent = text;
+  noticeEl.classList.toggle('is-info', !!isInfo);
+  noticeEl.classList.add('is-visible');
+}
+
+function hideNotice() {
+  noticeEl.classList.remove('is-visible');
+}
+
+// 标记未完成的选项组
+function markInvalidFields(missingFields) {
+  document.querySelectorAll('.field').forEach(field => {
+    const key = field.getAttribute('data-field');
+    field.classList.toggle('is-invalid', missingFields.indexOf(key) !== -1);
+  });
+}
+
+function clearInvalidFields() {
+  document.querySelectorAll('.field').forEach(field => field.classList.remove('is-invalid'));
+}
+
+// 生成（提交）
+form.addEventListener('submit', event => {
+  event.preventDefault();
+
+  // 防重复提交
+  if (isGenerating) return;
+
+  const input = readForm();
+  const missing = [];
+  if (!input.task) missing.push('task');
+  if (!input.time) missing.push('time');
+  if (!input.weak) missing.push('weak');
+  if (!input.urgency) missing.push('urgency');
+
+  if (missing.length > 0) {
+    markInvalidFields(missing);
+    resultSection.hidden = true;
+    currentPlan = null;
+    showNotice('还差 ' + missing.length + ' 项没选，请先完成：' +
+      missing.map(k => {
+        if (k === 'task') return '当前任务';
+        if (k === 'time') return '每天可用时间';
+        if (k === 'weak') return '薄弱项';
+        return '截止紧迫度';
+      }).join('、') + '。');
+    // 聚焦第一个未选项
+    const firstField = document.querySelector('.field.is-invalid .chip input');
+    if (firstField) firstField.focus();
+    return;
+  }
+
+  isGenerating = true;
+  generateBtn.disabled = true;
+  generateBtn.textContent = '生成中…';
+
+  // 极短延迟，仅用于让防重复提交真正生效，不做动画
+  setTimeout(() => {
+    try {
+      currentPlan = buildPlan(input);
+      renderPlan(currentPlan);
+      resultSection.hidden = false;
+      staleBar.classList.remove('is-visible');
+      clearInvalidFields();
+      hideNotice();
+
+      generateBtn.textContent = '已生成';
+      setTimeout(() => {
+        generateBtn.textContent = '生成本周计划';
+        generateBtn.disabled = false;
+        isGenerating = false;
+      }, 600);
+
+      // 滚动到结果
+      resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      generateBtn.textContent = '生成本周计划';
+      generateBtn.disabled = false;
+      isGenerating = false;
+      showNotice('生成失败，请刷新页面后重试。');
+    }
+  }, 180);
+});
+
+// 选项变更：提示结果已过期
+form.addEventListener('change', () => {
+  const field = document.activeElement ? document.activeElement.closest('.field') : null;
+  if (field) field.classList.remove('is-invalid');
+
+  if (currentPlan && !resultSection.hidden) {
+    staleBar.classList.add('is-visible');
+  }
+});
+
+// 重新生成：清空当前结果与选项
+function resetAll() {
+  form.reset();
+  currentPlan = null;
+  resultSection.hidden = true;
+  staleBar.classList.remove('is-visible');
+  clearInvalidFields();
+  hideNotice();
+  showNotice('已清空当前计划。重新选择四项后，点“生成本周计划”。', true);
+  document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  generateBtn.textContent = '生成本周计划';
+  generateBtn.disabled = false;
+  isGenerating = false;
+}
+
+document.getElementById('resetBtn').addEventListener('click', resetAll);
+document.getElementById('regenInlineBtn').addEventListener('click', () => {
+  document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  form.requestSubmit();
+});
+
+// 复制计划文本
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  if (!currentPlan) return;
+  const text = planToText(currentPlan);
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopy(text);
+    }
+    showToast('计划已复制到剪贴板');
+  } catch (err) {
+    try {
+      fallbackCopy(text);
+      showToast('计划已复制到剪贴板');
+    } catch (e) {
+      showToast('复制失败，请手动选择文本');
+    }
+  }
+});
+
+// 兼容旧浏览器的复制方式
+function fallbackCopy(text) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-9999px';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  document.body.removeChild(area);
+}
+
+// 导出 .txt
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (!currentPlan) return;
+
+  const text = planToText(currentPlan);
+  const blob = new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const stamp = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = '本周学习计划_' + currentPlan.taskLabel + '_' + stamp + '.txt';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast('已导出 .txt 文件');
+});
+</script>
+</body>
+</html>
